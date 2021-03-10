@@ -7,7 +7,6 @@ import scipy
 from scipy import signal
 from scipy.ndimage.filters import convolve
 import tensorflow.compat.v1 as tf
-from tensorflow_gan.python.eval import classifier_metrics
 
 
 def _FSpecialGauss(size, sigma):
@@ -132,7 +131,7 @@ def load_lpips():
   with graph.as_default():
     input1 = tf.compat.v1.placeholder(tf.float32, [None, None, 3])
     input2 = tf.compat.v1.placeholder(tf.float32, [None, None, 3])
-    with tf.gfile.Open('alex_net', 'rb') as f:
+    with tf.gfile.Open('alex_net.pb', 'rb') as f:
       graph_def = tf.GraphDef()
       graph_def.ParseFromString(f.read())
       # Required order for network is [B, C, H, W].
