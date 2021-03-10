@@ -30,7 +30,7 @@ def main(argv):
     lpips_score = lpips_fn(float32_gen,
                           float32_gt)
     psnr_score = psnr_fn(float32_gen, float32_gt)
-    return ssim_score, lpips_score, psnr_score
+    return ssim_score, psnr_score, lpips_score
 
   images_to_eval = glob.glob(os.path.join(FLAGS.generated_views, "*.png"))
   files = [os.path.basename(s) for s in images_to_eval]
@@ -49,7 +49,6 @@ def main(argv):
     ssim.append(ssim_score)
     psnr.append(psnr_score)
     lpips.append(lpips_score)
-
   print("PSNR:")
   print("Mean: %04f" % np.mean(psnr))
   print("Stddev: %04f" % np.std(psnr))
