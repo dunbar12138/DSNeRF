@@ -1,6 +1,6 @@
-expname = fern_dsnerf
+expname = fern_dsnerf_2view_old_v5
 basedir = ./logs
-datadir = ./data/nerf_llff_data/nerf_llff_data/fern_2view
+datadir = /home/kangled/github/3dGeneration/nerf-pytorch-yenchenlin/data/nerf_llff_data/nerf_llff_data/fern
 dataset_type = llff
 
 factor = 8
@@ -12,16 +12,17 @@ N_importance = 64
 use_viewdirs = True
 raw_noise_std = 1e0
 
-chunk = 8192
-netchunk = 16384
+chunk = 2048
+netchunk = 4096
 netdepth = 4
 
 i_testset = 1000
 i_video = 10000
 N_iters = 20000
 
-train_scene = [0, 1]
-test_scene = []
+train_scene = [1, 19]
+test_scene = [-1]
 no_ndc = True
 colmap_depth = True
+depth_loss = True
 depth_lambda = 0.1

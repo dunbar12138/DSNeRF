@@ -1,9 +1,9 @@
-expname = fern_nerf
+expname = car_nerf_6view_v3
 basedir = ./logs
-datadir = ./data/nerf_llff_data/nerf_llff_data/fern_2view
+datadir = /data2/kangled/datasets/DSNeRF/red_wood/car00003
 dataset_type = llff
 
-factor = 8
+factor = 1
 
 N_rand = 1024
 N_samples = 64
@@ -20,6 +20,6 @@ i_testset = 1000
 i_video = 10000
 N_iters = 20000
 
-train_scene = [0, 1]
-test_scene = []
+train_scene = [0, 2, 3, 4, 5]
+test_scene = [1]
 no_ndc = True

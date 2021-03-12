@@ -15,8 +15,6 @@ import matplotlib.pyplot as plt
 from run_nerf_helpers import *
 
 from load_llff import load_llff_data, load_colmap_depth
-from load_deepvoxels import load_dv_data
-from load_blender import load_blender_data
 
 from loss import SigmaLoss
 
@@ -603,7 +601,7 @@ def train():
     args = parser.parse_args()
 
     if not args.render_only:
-        wandb.init(project="nerf")
+        wandb.init(project="dsnerf", entity='kangled')
         wandb.config.update(args)
     # Load data
 
@@ -626,6 +624,9 @@ def train():
         if args.test_scene is not None:
             i_test = np.array([i for i in args.test_scene])
 
+        if i_test[0] < 0:
+            i_test = []
+
         i_val = i_test
         if args.train_scene is None:
             i_train = np.array([i for i in np.arange(int(images.shape[0])) if
@@ -643,32 +644,6 @@ def train():
             near = 0.
             far = 1.
         print('NEAR FAR', near, far)
-
-    elif args.dataset_type == 'blender':
-        images, poses, render_poses, hwf, i_split = load_blender_data(args.datadir, args.half_res, args.testskip)
-        print('Loaded blender', images.shape, render_poses.shape, hwf, args.datadir)
-        i_train, i_val, i_test = i_split
-
-        near = 2.
-        far = 6.
-
-        if args.white_bkgd:
-            images = images[...,:3]*images[...,-1:] + (1.-images[...,-1:])
-        else:
-            images = images[...,:3]
-
-    elif args.dataset_type == 'deepvoxels':
-
-        images, poses, render_poses, hwf, i_split = load_dv_data(scene=args.shape,
-                                                                 basedir=args.datadir,
-                                                                 testskip=args.testskip)
-
-        print('Loaded deepvoxels', images.shape, render_poses.shape, hwf, args.datadir)
-        i_train, i_val, i_test = i_split
-
-        hemi_R = np.mean(np.linalg.norm(poses[:,:3,-1], axis=-1))
-        near = hemi_R-1.
-        far = hemi_R+1.
 
     else:
         print('Unknown dataset type', args.dataset_type, 'exiting')
@@ -952,7 +927,7 @@ def train():
             #     render_kwargs_test['c2w_staticcam'] = None
             #     imageio.mimwrite(moviebase + 'rgb_still.mp4', to8b(rgbs_still), fps=30, quality=8)
 
-        if i%args.i_testset==0 and i > 0:
+        if i%args.i_testset==0 and i > 0 and len(i_test) > 0:
             testsavedir = os.path.join(basedir, expname, 'testset_{:06d}'.format(i))
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
