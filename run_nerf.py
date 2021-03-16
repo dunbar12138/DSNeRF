@@ -15,10 +15,14 @@ import matplotlib.pyplot as plt
 from run_nerf_helpers import *
 
 from load_llff import load_llff_data, load_colmap_depth
+from load_dtu import load_dtu_data
 
 from loss import SigmaLoss
 
 import wandb
+
+from data import RayDataset
+from torch.utils.data import DataLoader
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -592,6 +596,8 @@ def config_parser():
                         help="Use depth supervision by colmap - sigma loss.")
     parser.add_argument("--sigma_lambda", type=float, default=0.1,
                         help="Sigma lambda used for loss.")
+    parser.add_argument("--weighted_loss", action='store_true',
+                        help="Use weighted loss by reprojection error.")
     return parser
 
 
@@ -644,7 +650,27 @@ def train():
             near = 0.
             far = 1.
         print('NEAR FAR', near, far)
+    elif args.dataset_type == 'dtu':
+        images, poses, hwf = load_dtu_data(args.datadir)
+        print('Loaded DTU', images.shape, poses.shape, hwf, args.datadir)
+        if args.test_scene is not None:
+            i_test = np.array([i for i in args.test_scene])
 
+        if i_test[0] < 0:
+            i_test = []
+
+        i_val = i_test
+        if args.train_scene is None:
+            i_train = np.array([i for i in np.arange(int(images.shape[0])) if
+                        (i not in i_test and i not in i_val)])
+        else:
+            i_train = np.array([i for i in args.train_scene if
+                        (i not in i_test and i not in i_val)])
+        
+        near = 0.1
+        far = 5.0
+        if args.colmap_depth:
+            depth_gts = load_colmap_depth(args.datadir, factor=args.factor, bd_factor=.75)
     else:
         print('Unknown dataset type', args.dataset_type, 'exiting')
         return
@@ -766,10 +792,15 @@ def train():
                 # print(rays_depth.shape)
                 rays_depth = np.transpose(rays_depth, [1,0,2])
                 depth_value = np.repeat(depth_gts[i]['depth'][:,None,None], 3, axis=2) # N x 1 x 3
-                rays_depth = np.concatenate([rays_depth, depth_value], axis=1)
+                weights = np.repeat(depth_gts[i]['weight'][:,None,None], 3, axis=2) # N x 1 x 3
+                rays_depth = np.concatenate([rays_depth, depth_value, weights], axis=1) # N x 4 x 3
                 rays_depth_list.append(rays_depth)
 
             rays_depth = np.concatenate(rays_depth_list, axis=0)
+            print('rays_weights mean:', np.mean(rays_depth[:,3,0]))
+            print('rays_weights std:', np.std(rays_depth[:,3,0]))
+            print('rays_weights max:', np.max(rays_depth[:,3,0]))
+            print('rays_weights min:', np.min(rays_depth[:,3,0]))
             print('rays_depth.shape:', rays_depth.shape)
             rays_depth = rays_depth.astype(np.float32)
             print('shuffle depth rays')
@@ -784,8 +815,10 @@ def train():
     images = torch.Tensor(images).to(device)
     poses = torch.Tensor(poses).to(device)
     if use_batching:
-        rays_rgb = torch.Tensor(rays_rgb).to(device)
-        rays_depth = torch.Tensor(rays_depth).to(device) if rays_depth is not None else None
+        # rays_rgb = torch.Tensor(rays_rgb).to(device)
+        # rays_depth = torch.Tensor(rays_depth).to(device) if rays_depth is not None else None
+        raysRGB_iter = iter(DataLoader(RayDataset(rays_rgb), batch_size = N_rand, shuffle=True, num_workers=0))
+        raysDepth_iter = iter(DataLoader(RayDataset(rays_depth), batch_size = N_rand, shuffle=True, num_workers=0)) if rays_depth is not None else None
 
 
     N_iters = args.N_iters + 1
@@ -804,25 +837,36 @@ def train():
         # Sample random ray batch
         if use_batching:
             # Random over all images
-            batch = rays_rgb[i_batch:i_batch+N_rand] # [B, 2+1, 3*?]
+            # batch = rays_rgb[i_batch:i_batch+N_rand] # [B, 2+1, 3*?]
+            try:
+                batch = next(raysRGB_iter).to(device)
+            except StopIteration:
+                raysRGB_iter = iter(DataLoader(RayDataset(rays_rgb), batch_size = N_rand, shuffle=True, num_workers=0))
+                batch = next(raysRGB_iter).to(device)
             batch = torch.transpose(batch, 0, 1)
             batch_rays, target_s = batch[:2], batch[2]
 
             if args.colmap_depth:
-                batch_depth = rays_depth[i_batch:i_batch+N_rand]
+                # batch_depth = rays_depth[i_batch:i_batch+N_rand]
+                try:
+                    batch_depth = next(raysDepth_iter).to(device)
+                except StopIteration:
+                    raysDepth_iter = iter(DataLoader(RayDataset(rays_depth), batch_size = N_rand, shuffle=True, num_workers=0))
+                    batch_depth = next(raysDepth_iter).to(device)
                 batch_depth = torch.transpose(batch_depth, 0, 1)
                 batch_rays_depth = batch_depth[:2] # 2 x B x 3
                 target_depth = batch_depth[2,:,0] # B
+                ray_weights = batch_depth[3,:,0]
 
-            i_batch += N_rand
-            if i_batch >= rays_rgb.shape[0] or (args.colmap_depth and i_batch >= rays_depth.shape[0]):
-                print("Shuffle data after an epoch!")
-                rand_idx = torch.randperm(rays_rgb.shape[0])
-                rays_rgb = rays_rgb[rand_idx]
-                if args.colmap_depth:
-                    rand_idx = torch.randperm(rays_depth.shape[0])
-                    rays_depth = rays_depth[rand_idx]
-                i_batch = 0
+            # i_batch += N_rand
+            # if i_batch >= rays_rgb.shape[0] or (args.colmap_depth and i_batch >= rays_depth.shape[0]):
+            #     print("Shuffle data after an epoch!")
+            #     rand_idx = torch.randperm(rays_rgb.shape[0])
+            #     rays_rgb = rays_rgb[rand_idx]
+            #     if args.colmap_depth:
+            #         rand_idx = torch.randperm(rays_depth.shape[0])
+            #         rays_depth = rays_depth[rand_idx]
+            #     i_batch = 0
 
 
         else:
@@ -868,7 +912,11 @@ def train():
         img_loss = img2mse(rgb, target_s)
         depth_loss = 0
         if args.depth_loss:
-            depth_loss = img2mse(depth_col, target_depth)
+            # depth_loss = img2mse(depth_col, target_depth)
+            if args.weighted_loss:
+                depth_loss = torch.mean(((depth_col - target_depth) ** 2) * ray_weights)
+            else:
+                depth_loss = img2mse(depth_col, target_depth)
         sigma_loss = 0
         if args.sigma_loss:
             sigma_loss = extras_col['sigma_loss'].mean()
@@ -909,7 +957,7 @@ def train():
             }, path)
             print('Saved checkpoints at', path)
 
-        if i%args.i_video==0 and i > 0:
+        if args.i_video > 0 and i%args.i_video==0 and i > 0:
             # Turn on testing mode
             with torch.no_grad():
                 rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test)

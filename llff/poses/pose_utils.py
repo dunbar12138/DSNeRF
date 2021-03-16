@@ -79,7 +79,7 @@ def save_poses(basedir, poses, pts3d, perm):
         vis = vis_arr[:, i]
         zs = zvals[:, i]
         zs = zs[vis==1]
-        close_depth, inf_depth = np.percentile(zs, .1), np.percentile(zs, 99.9)
+        close_depth, inf_depth = np.percentile(zs, .5), np.percentile(zs, 99.5)
         # print( i, close_depth, inf_depth )
         
         save_arr.append(np.concatenate([poses[..., i].ravel(), np.array([close_depth, inf_depth])], 0))

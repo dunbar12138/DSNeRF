@@ -5,7 +5,7 @@ dataset_type = llff
 
 factor = 1
 
-N_rand = 1024
+N_rand = 512
 N_samples = 64
 N_importance = 128
 
