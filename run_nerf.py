@@ -598,6 +598,8 @@ def config_parser():
                         help="Sigma lambda used for loss.")
     parser.add_argument("--weighted_loss", action='store_true',
                         help="Use weighted loss by reprojection error.")
+    parser.add_argument("--depth_with_rgb", action='store_true',
+                    help="single forward for both depth and rgb")
     return parser
 
 
@@ -903,10 +905,13 @@ def train():
         rgb, disp, acc, depth, extras = render(H, W, focal, chunk=args.chunk, rays=batch_rays,
                                                 verbose=i < 10, retraw=True,
                                                 **render_kwargs_train)
-        if args.colmap_depth:
+        if args.colmap_depth and not args.depth_with_rgb:
             _, _, _, depth_col, extras_col = render(H, W, focal, chunk=args.chunk, rays=batch_rays_depth,
                                                 verbose=i < 10, retraw=True, depths=target_depth,
                                                 **render_kwargs_train)
+        elif args.colmap_depth and args.depth_with_rgb:
+            depth_col = depth
+
 
         optimizer.zero_grad()
         img_loss = img2mse(rgb, target_s)
