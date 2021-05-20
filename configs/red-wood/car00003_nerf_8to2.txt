@@ -1,4 +1,4 @@
-expname = car00003_nerf_8to2_test
+expname = car00003_nerf_8to2
 basedir = ./logs
 datadir = /data2/kangled/datasets/DSNeRF/red_wood/car00003/2-view/
 dataset_type = llff

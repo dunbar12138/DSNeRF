@@ -24,6 +24,9 @@ import wandb
 from data import RayDataset
 from torch.utils.data import DataLoader
 
+from utils.generate_renderpath import generate_renderpath
+import cv2
+
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # torch.cuda.set_device(2)
@@ -174,10 +177,16 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
 
         if savedir is not None:
             rgb8 = to8b(rgbs[-1])
+            rgb8[np.isnan(rgb8)] = 0
             filename = os.path.join(savedir, '{:03d}.png'.format(i))
             imageio.imwrite(filename, rgb8)
-            imageio.imwrite(os.path.join(savedir, '{:03d}_depth.png'.format(i)), depth.cpu().numpy())
-            np.savez(os.path.join(savedir, '{:03d}.npz'.format(i)), rgb=rgb.cpu().numpy(), disp=disp.cpu().numpy(), acc=acc.cpu().numpy(), depth=depth.cpu().numpy())
+            depth = depth.cpu().numpy()
+            print("max:", np.nanmax(depth))
+            depth = depth / 5 * 255
+            depth_color = cv2.applyColorMap(depth.astype(np.uint8), cv2.COLORMAP_JET)[:,:,::-1]
+            depth_color[np.isnan(depth_color)] = 0
+            imageio.imwrite(os.path.join(savedir, '{:03d}_depth.png'.format(i)), depth_color)
+            np.savez(os.path.join(savedir, '{:03d}.npz'.format(i)), rgb=rgb.cpu().numpy(), disp=disp.cpu().numpy(), acc=acc.cpu().numpy(), depth=depth)
 
 
     rgbs = np.stack(rgbs, 0)
@@ -522,7 +531,9 @@ def config_parser():
     parser.add_argument("--render_test_ray", action='store_true', 
                         help='render the test set instead of render_poses path')
     parser.add_argument("--render_train", action='store_true', 
-                        help='render the train set instead of render_poses path')                  
+                        help='render the train set instead of render_poses path')  
+    parser.add_argument("--render_mypath", action='store_true', 
+                        help='render the test path')         
     parser.add_argument("--render_factor", type=int, default=0, 
                         help='downsampling factor to speed up rendering, set 4 or 8 for fast preview')
 
@@ -598,6 +609,8 @@ def config_parser():
                         help="Sigma lambda used for loss.")
     parser.add_argument("--weighted_loss", action='store_true',
                         help="Use weighted loss by reprojection error.")
+    parser.add_argument("--relative_loss", action='store_true',
+                        help="Use relative loss.")
     parser.add_argument("--depth_with_rgb", action='store_true',
                     help="single forward for both depth and rgb")
     return parser
@@ -686,6 +699,8 @@ def train():
         render_poses = np.array(poses[i_test])
     elif args.render_train:
         render_poses = np.array(poses[i_train])
+    elif args.render_mypath:
+        render_poses = generate_renderpath(np.array(poses[i_test]), focal)
 
     # Create log dir and copy the config file
     basedir = args.basedir
@@ -758,9 +773,12 @@ def train():
                 print("Estimated depth:", depth_maps[0].cpu().numpy())
                 print(depth_gts[index_pose]['coord'])
             else:
-                rgbs, _ = render_path(render_poses, hwf, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
+                rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
                 print('Done rendering', testsavedir)
-                imageio.mimwrite(os.path.join(testsavedir, 'video.mp4'), to8b(rgbs), fps=30, quality=8)
+                imageio.mimwrite(os.path.join(testsavedir, 'rgb.mp4'), to8b(rgbs), fps=30, quality=8)
+                disps[np.isnan(disps)] = 0
+                print('Depth stats', np.mean(disps), np.max(disps), np.percentile(disps, 95))
+                imageio.mimwrite(os.path.join(testsavedir, 'disp.mp4'), to8b(disps / np.percentile(disps, 95)), fps=30, quality=8)
 
             
             return
@@ -920,6 +938,8 @@ def train():
             # depth_loss = img2mse(depth_col, target_depth)
             if args.weighted_loss:
                 depth_loss = torch.mean(((depth_col - target_depth) ** 2) * ray_weights)
+            elif args.relative_loss:
+                depth_loss = torch.mean(((depth_col - target_depth) / target_depth)**2)
             else:
                 depth_loss = img2mse(depth_col, target_depth)
         sigma_loss = 0
