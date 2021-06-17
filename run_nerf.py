@@ -182,10 +182,11 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
             imageio.imwrite(filename, rgb8)
             depth = depth.cpu().numpy()
             print("max:", np.nanmax(depth))
-            depth = depth / 5 * 255
-            depth_color = cv2.applyColorMap(depth.astype(np.uint8), cv2.COLORMAP_JET)[:,:,::-1]
-            depth_color[np.isnan(depth_color)] = 0
-            imageio.imwrite(os.path.join(savedir, '{:03d}_depth.png'.format(i)), depth_color)
+            # depth = depth / 5 * 255
+            # depth_color = cv2.applyColorMap(depth.astype(np.uint8), cv2.COLORMAP_JET)[:,:,::-1]
+            # depth_color[np.isnan(depth_color)] = 0
+            # imageio.imwrite(os.path.join(savedir, '{:03d}_depth.png'.format(i)), depth_color)
+            imageio.imwrite(os.path.join(savedir, '{:03d}_depth.png'.format(i)), depth)
             np.savez(os.path.join(savedir, '{:03d}.npz'.format(i)), rgb=rgb.cpu().numpy(), disp=disp.cpu().numpy(), acc=acc.cpu().numpy(), depth=depth)
 
 
@@ -613,6 +614,8 @@ def config_parser():
                         help="Use relative loss.")
     parser.add_argument("--depth_with_rgb", action='store_true',
                     help="single forward for both depth and rgb")
+    parser.add_argument("--normalize_depth", action='store_true',
+                    help="normalize depth before calculating loss")
     return parser
 
 
@@ -700,7 +703,8 @@ def train():
     elif args.render_train:
         render_poses = np.array(poses[i_train])
     elif args.render_mypath:
-        render_poses = generate_renderpath(np.array(poses[i_test]), focal)
+        # render_poses = generate_renderpath(np.array(poses[i_test]), focal)
+        render_poses = generate_renderpath(np.array(poses[i_test])[3:4], focal, sc=1)
 
     # Create log dir and copy the config file
     basedir = args.basedir
@@ -826,6 +830,7 @@ def train():
             print('shuffle depth rays')
             np.random.shuffle(rays_depth)
 
+        max_depth = np.max(rays_depth[:,3,0])
         print('done')
         i_batch = 0
 
@@ -937,7 +942,10 @@ def train():
         if args.depth_loss:
             # depth_loss = img2mse(depth_col, target_depth)
             if args.weighted_loss:
-                depth_loss = torch.mean(((depth_col - target_depth) ** 2) * ray_weights)
+                if not args.normalize_depth:
+                    depth_loss = torch.mean(((depth_col - target_depth) ** 2) * ray_weights)
+                else:
+                    depth_loss = torch.mean(((depth_col - target_depth) / max_depth) ** 2) * ray_weights)
             elif args.relative_loss:
                 depth_loss = torch.mean(((depth_col - target_depth) / target_depth)**2)
             else:
@@ -989,7 +997,7 @@ def train():
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
             imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8)
+            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.nanmax(disps)), fps=30, quality=8)
 
             wandb.log({"spiral": [wandb.Video(moviebase + 'rgb.mp4'), wandb.Video(moviebase + 'disp.mp4')]}, commit=False)
 
