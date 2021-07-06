@@ -1,12 +1,21 @@
 # Depth-supervised NeRF: Fewer Views and Faster Training for Free
 
-[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**(coming soon)]() | [**Model & Data**(coming soon)]()
+[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**]()
 
 We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
 
 <p align="center">
   <img src="figure_teaser.png"  width="800" />
 </p>
+
+---
+
+[Depth-supervised NeRF: Fewer Views and Faster Training for Free](https://www.cs.cmu.edu/~dsnerf/)  
+ [Kangle Deng](https://dunbar12138.github.io/)\*<sup>1</sup>,
+ [Andrew Liu](https://andrewhliu.github.io/)\*<sup>2</sup>,
+ [Jun-Yan Zhu](https://www.cs.cmu.edu/~junyanz/)<sup>1</sup>,
+ [Deva Ramanan](https://www.cs.cmu.edu/~deva/)<sup>1,3</sup>,
+ <sup>1</sup>CMU, <sup>2</sup>Google, <sup>3</sup>Argo AI
 
 ---
 
@@ -23,21 +32,21 @@ You will also need [COLMAP](https://github.com/colmap/colmap) installed to compu
 
 ### Data
 
-Download data for the example scene: `fern`
+Download data for the example scene: `fern_2v`
 ```
 bash download_example_data.sh
 ```
 
-To play with other scenes presented in the paper, download the data [here]().
+To play with other scenes presented in the paper, download the data [here](https://drive.google.com/file/d/1g1bysdK7FvyNuHvyjrvWW3kEvNrMfeBZ/view?usp=sharing).
 
 ### Pre-trained Models
 
-You can download th pre-trained models [here](). Place the downloaded directory in `./logs` in order to test it later. See the following directory structure for an example:
+You can download the pre-trained models [here](https://drive.google.com/drive/folders/1lby-G4163NFi7Ue4rdB9D0cM67d7oskr?usp=sharing). Place the downloaded directory in `./logs` in order to test it later. See the following directory structure for an example:
 ```
 ├── logs 
-│   ├── fern_test
-│   ├── flower_test  # downloaded logs
-│   ├── trex_test    # downloaded logs
+│   ├── fern_2v
+│   ├── flower_2v  # downloaded logs
+│   ├── trex_2v    # downloaded logs
 ```
 
 ### How to Run?
@@ -49,7 +58,7 @@ This step is necessary only when you want to run on your own real data.
 First, place your scene directory somewhere. See the following directory structure for an example:
 ```
 ├── data
-│   ├── fern
+│   ├── fern_2v
 │   ├── ├── images
 │   ├── ├── ├── image001.png
 │   ├── ├── ├── image002.png
@@ -83,6 +92,14 @@ python run_nerf.py --config configs/fern_dsnerf.txt --render_only
 python run_nerf.py --config configs/fern_dsnerf.txt --eval
 ```
 
+
+---
+
+## Citation
+
+If you find this repository useful for your research, please cite the following work.
+```
+```
 
 ---
 
