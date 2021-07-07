@@ -1,6 +1,6 @@
-# Depth-supervised NeRF: Fewer Views and Faster Training for Free (WIP)
+# Depth-supervised NeRF: Fewer Views and Faster Training for Free
 
-[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791)
+[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791) | [**Video**](https://youtu.be/84LFxCo7ogk)
 
 We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
 
