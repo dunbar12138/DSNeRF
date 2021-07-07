@@ -2,7 +2,7 @@
 
 [**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791) | [**Video**](https://youtu.be/84LFxCo7ogk)
 
-We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
+We propose DS-NeRF (Depth-supervised Neural Radiance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
 
 <p align="center">
   <img src="figure_teaser.png"  width="800" />
@@ -32,7 +32,7 @@ Install requirements:
 pip install -r requirements.txt
 ```
 
-You will also need [COLMAP](https://github.com/colmap/colmap) installed to compute poses if you want to run on your own real data.
+You will also need [COLMAP](https://github.com/colmap/colmap) installed to compute poses if you want to run on your data.
 
 ### Data
 
@@ -56,7 +56,7 @@ You can download the pre-trained models [here](https://drive.google.com/drive/fo
 
 #### Generate camera poses and sparse depth information using COLMAP (optional)
 
-This step is necessary only when you want to run on your own real data.
+This step is necessary only when you want to run on your data.
 
 First, place your scene directory somewhere. See the following directory structure for an example:
 ```
