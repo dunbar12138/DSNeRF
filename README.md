@@ -1,14 +1,13 @@
-# Depth-supervised NeRF: Fewer Views and Faster Training for Free (WIP)
+# Depth-supervised NeRF: Fewer Views and Faster Training for Free
 
-[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791)
+[**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791) | [**YouTube**](https://youtu.be/84LFxCo7ogk)
 
-We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
+Pytorch implementation of our method for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. It can be used train NeRF models given only very few input views.
 
 <p align="center">
-  <img src="figure_teaser.png"  width="800" />
+  <img src="resources/DSNeRF_teaser_small.gif"  width="800" />
 </p>
 
----
 
 [Depth-supervised NeRF: Fewer Views and Faster Training for Free](https://www.cs.cmu.edu/~dsnerf/)
 
@@ -22,6 +21,24 @@ arXiv 2107.02791, 2021
 <sup>1</sup>CMU, <sup>2</sup>Google, <sup>3</sup>Argo AI
 
 ---
+
+We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
+
+<p align="center">
+  <img src="figure_teaser.png"  width="800" />
+</p>
+
+NeRF trained with 2 views:
+<p align="center">
+  <img src="resources/DSNeRF_nerf.gif"  width="800" />
+</p>
+
+DS-NeRF trained with 2 views:
+<p align="center">
+  <img src="resources/DSNeRF_dsnerf.gif"  width="800" />
+</p>
+---
+
 
 ## Quick Start
 
@@ -72,15 +89,6 @@ To generate the poses and sparse point cloud:
 python imgs2poses.py <your_scenedir>
 ```
 
-#### Training
-
-To train a DS-NeRF on the example `fern` dataset:
-```
-python run_nerf.py --config configs/fern_dsnerf.txt
-```
-
-You can create your own experiment configuration to try other datasets.
-
 #### Testing
 
 Once you have the experiment directory (downloaded or trained on your own) in `./logs`, 
@@ -94,6 +102,16 @@ python run_nerf.py --config configs/fern_dsnerf.txt --render_only
 ```
 python run_nerf.py --config configs/fern_dsnerf.txt --eval
 ``` -->
+
+
+#### Training
+
+To train a DS-NeRF on the example `fern` dataset:
+```
+python run_nerf.py --config configs/fern_dsnerf.txt
+```
+
+You can create your own experiment configuration to try other datasets.
 
 
 ---
