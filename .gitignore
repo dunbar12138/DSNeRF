@@ -1,6 +1,5 @@
 logs
 wandb
-configs
 scripts
 web
 *.pyc

@@ -945,7 +945,7 @@ def train():
                 if not args.normalize_depth:
                     depth_loss = torch.mean(((depth_col - target_depth) ** 2) * ray_weights)
                 else:
-                    depth_loss = torch.mean(((depth_col - target_depth) / max_depth) ** 2) * ray_weights)
+                    depth_loss = torch.mean((((depth_col - target_depth) / max_depth) ** 2) * ray_weights)
             elif args.relative_loss:
                 depth_loss = torch.mean(((depth_col - target_depth) / target_depth)**2)
             else:
