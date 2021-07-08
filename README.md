@@ -22,7 +22,7 @@ arXiv 2107.02791, 2021
 
 ---
 
-We propose DS-NeRF (Depth-supervised Neural Radi-ance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
+We propose DS-NeRF (Depth-supervised Neural Radiance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
 
 <p align="center">
   <img src="figure_teaser.png"  width="800" />
@@ -37,6 +37,7 @@ DS-NeRF trained with 2 views:
 <p align="center">
   <img src="resources/DSNeRF_dsnerf.gif"  width="800" />
 </p>
+
 ---
 
 
