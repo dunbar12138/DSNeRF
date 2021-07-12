@@ -38,6 +38,16 @@ DS-NeRF trained with 2 views:
   <img src="resources/DSNeRF_dsnerf.gif"  width="800" />
 </p>
 
+NeRF trained with 5 views:
+<p align="center">
+  <img src="resources/all_nerf_5v.gif"  width="800" />
+</p>
+
+DS-NeRF trained with 5 views:
+<p align="center">
+  <img src="resources/all_dsnerf_5v.gif"  width="800" />
+</p>
+
 ---
 
 
