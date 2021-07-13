@@ -22,11 +22,13 @@ arXiv 2107.02791, 2021
 
 ---
 
-We propose DS-NeRF (Depth-supervised Neural Radiance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. 
+We propose DS-NeRF (Depth-supervised Neural Radiance Fields), a model for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. Current NeRF methods require many images with known camera parameters -- typically produced by running structure-from-motion (SFM) to estimate poses and a sparse 3D point cloud. Most, if not all, NeRF pipelines make use of the former but ignore the latter. Our key insight is that such sparse 3D input can be used as an additional free signal during training.
 
 <p align="center">
   <img src="figure_teaser.png"  width="800" />
 </p>
+
+## Results
 
 NeRF trained with 2 views:
 <p align="center">
@@ -109,6 +111,8 @@ Once you have the experiment directory (downloaded or trained on your own) in `.
 python run_nerf.py --config configs/fern_dsnerf.txt --render_only
 ```
 
+The video would be stored in the experiment directory.
+
 <!-- - to only compute the evaluation metrics:
 ```
 python run_nerf.py --config configs/fern_dsnerf.txt --eval
@@ -121,6 +125,8 @@ To train a DS-NeRF on the example `fern` dataset:
 ```
 python run_nerf.py --config configs/fern_dsnerf.txt
 ```
+
+It will create an experiment directory in `./logs`, and store the checkpoints and rendering examples there.
 
 You can create your own experiment configuration to try other datasets.
 
@@ -141,6 +147,6 @@ If you find this repository useful for your research, please cite the following 
 
 ---
 
-## Credits
+## Acknowlegements
 
-This code borrows heavily from [nerf-pytorch](https://github.com/yenchenlin/nerf-pytorch).
+This code borrows heavily from [nerf-pytorch](https://github.com/yenchenlin/nerf-pytorch). We thank Takuya Narihira, Akio Hayakawa, Sheng-Yu Wang, and for helpful discussion. We are grateful for the support from Sony Corporation, Singapore DSTA, and the CMU Argo AI Center for Autonomous Vehicle Research.
