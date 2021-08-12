@@ -1,6 +1,6 @@
-expname = fern_dsnerf_2v
+expname = fern_2v
 basedir = ./logs
-datadir = ./data/fern_2v
+datadir = ./data/fern_2view
 dataset_type = llff
 
 factor = 8
