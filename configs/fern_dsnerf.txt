@@ -12,8 +12,8 @@ N_importance = 64
 use_viewdirs = True
 raw_noise_std = 1e0
 
-chunk = 2048
-netchunk = 4096
+chunk = 8192
+netchunk = 16384
 netdepth = 4
 
 i_testset = 1000
