@@ -131,6 +131,10 @@ It will create an experiment directory in `./logs`, and store the checkpoints an
 You can create your own experiment configuration to try other datasets.
 
 
+### Use depth-supervised loss in your own project
+
+We provide a tutorial on how to use depth-supervised loss in your own project [here](resources/tutorial.md).
+
 ---
 
 ## Citation
