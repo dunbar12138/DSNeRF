@@ -143,7 +143,7 @@ If you find this repository useful for your research, please cite the following 
 ```
 @article{kangle2021dsnerf,
   title={Depth-supervised NeRF: Fewer Views and Faster Training for Free},
-  author={Kangle Deng, Andrew Liu, Jun-Yan Zhu, and Deva Ramanan},
+  author={Deng, Kangle and Liu, Andrew and Zhu, Jun-Yan and Ramanan, Deva},
   journal={arXiv preprint arXiv:2107.02791},
   year={2021}
 }
