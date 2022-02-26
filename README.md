@@ -2,7 +2,7 @@
 
 [**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791) | [**YouTube**](https://youtu.be/84LFxCo7ogk)
 
-Pytorch implementation of our method for learning neural radiance fields that takes advantage of depth supervised by 3D point clouds. It can be used to train NeRF models given only very few input views.
+Pytorch implementation of DS-NeRF. DS-NeRF can improve the training of neural radiance fields by leveraging depth supervision derived from 3D point clouds. It can be used to train NeRF models given only very few input views.
 
 <p align="center">
   <img src="resources/DSNeRF_teaser_small.gif"  width="800" />
@@ -151,6 +151,6 @@ If you find this repository useful for your research, please cite the following 
 
 ---
 
-## Acknowlegements
+## Acknowledgments
 
 This code borrows heavily from [nerf-pytorch](https://github.com/yenchenlin/nerf-pytorch). We thank Takuya Narihira, Akio Hayakawa, Sheng-Yu Wang, and for helpful discussion. We are grateful for the support from Sony Corporation, Singapore DSTA, and the CMU Argo AI Center for Autonomous Vehicle Research.
