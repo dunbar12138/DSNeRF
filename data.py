@@ -12,5 +12,5 @@ class RayDataset(data.Dataset):
         return self.length
 
     def __getitem__(self, index):
-        return torch.Tensor(self.rayData[index]);
+        return torch.Tensor(self.rayData[index])
         

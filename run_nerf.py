@@ -30,7 +30,7 @@ import cv2
 # concate_time, iter_time, split_time, loss_time, backward_time = [], [], [], [], []
 
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+_DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # torch.cuda.set_device(2)
 np.random.seed(0)
 DEBUG = False
@@ -215,7 +215,7 @@ def render_test_ray(rays_o, rays_d, hwf, ndc, near, far, use_viewdirs, N_samples
 
     near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
 
-    t_vals = torch.linspace(0., 1., steps=N_samples).to(device)
+    t_vals = torch.linspace(0., 1., steps=N_samples).to(_DEVICE)
     z_vals = near * (1.-t_vals) + far * (t_vals)
 
     z_vals = z_vals.reshape([rays_o.shape[0], N_samples])
@@ -239,19 +239,19 @@ def create_nerf(args):
     if args.alpha_model_path is None:
         model = NeRF(D=args.netdepth, W=args.netwidth,
                     input_ch=input_ch, output_ch=output_ch, skips=skips,
-                    input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(device)
+                    input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(_DEVICE)
         grad_vars = list(model.parameters())
     else:
         alpha_model = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
                             input_ch=input_ch, output_ch=output_ch, skips=skips,
-                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(device)
+                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(_DEVICE)
         print('Alpha model reloading from', args.alpha_model_path)
         ckpt = torch.load(args.alpha_model_path)
         alpha_model.load_state_dict(ckpt['network_fine_state_dict'])
         if not args.no_coarse:
             model = NeRF_RGB(D=args.netdepth, W=args.netwidth,
                         input_ch=input_ch, output_ch=output_ch, skips=skips,
-                        input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, alpha_model=alpha_model).to(device)
+                        input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, alpha_model=alpha_model).to(_DEVICE)
             grad_vars = list(model.parameters())
         else:
             model = None
@@ -263,11 +263,11 @@ def create_nerf(args):
         if args.alpha_model_path is None:
             model_fine = NeRF(D=args.netdepth_fine, W=args.netwidth_fine,
                             input_ch=input_ch, output_ch=output_ch, skips=skips,
-                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(device)
+                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs).to(_DEVICE)
         else:
             model_fine = NeRF_RGB(D=args.netdepth_fine, W=args.netwidth_fine,
                             input_ch=input_ch, output_ch=output_ch, skips=skips,
-                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, alpha_model=alpha_model).to(device)
+                            input_ch_views=input_ch_views, use_viewdirs=args.use_viewdirs, alpha_model=alpha_model).to(_DEVICE)
         grad_vars += list(model_fine.parameters())
 
     network_query_fn = lambda inputs, viewdirs, network_fn : run_network(inputs, viewdirs, network_fn,
@@ -389,7 +389,7 @@ def render_rays(ray_batch,
     bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
     near, far = bounds[...,0], bounds[...,1] # [-1,1]
 
-    t_vals = torch.linspace(0., 1., steps=N_samples).to(device)
+    t_vals = torch.linspace(0., 1., steps=N_samples).to(_DEVICE)
     if not lindisp:
         z_vals = near * (1.-t_vals) + far * (t_vals)
     else:
@@ -403,13 +403,13 @@ def render_rays(ray_batch,
         upper = torch.cat([mids, z_vals[...,-1:]], -1)
         lower = torch.cat([z_vals[...,:1], mids], -1)
         # stratified samples in those intervals
-        t_rand = torch.rand(z_vals.shape).to(device)
+        t_rand = torch.rand(z_vals.shape).to(_DEVICE)
 
         # Pytest, overwrite u with numpy's fixed random numbers
         if pytest:
             np.random.seed(0)
             t_rand = np.random.rand(*list(z_vals.shape))
-            t_rand = torch.Tensor(t_rand).to(device)
+            t_rand = torch.Tensor(t_rand).to(_DEVICE)
 
         z_vals = lower + (upper - lower) * t_rand
 
@@ -734,7 +734,7 @@ def train():
     render_kwargs_test.update(bds_dict)
 
     # Move testing data to GPU
-    render_poses = torch.Tensor(render_poses).to(device)
+    render_poses = torch.Tensor(render_poses).to(_DEVICE)
 
     # Short circuit if only rendering out from trained model
     if args.render_only:
@@ -760,7 +760,7 @@ def train():
                 # rays_o, rays_d = get_rays(H, W, focal, render_poses[0])
                 index_pose = i_train[0]
                 rays_o, rays_d = get_rays_by_coord_np(H, W, focal, poses[index_pose,:3,:4], depth_gts[index_pose]['coord'])
-                rays_o, rays_d = torch.Tensor(rays_o).to(device), torch.Tensor(rays_d).to(device)
+                rays_o, rays_d = torch.Tensor(rays_o).to(_DEVICE), torch.Tensor(rays_d).to(_DEVICE)
                 rgb, sigma, z_vals, depth_maps, weights = render_test_ray(rays_o, rays_d, hwf, network=render_kwargs_test['network_fine'], **render_kwargs_test)
                 # sigma = sigma.reshape(H, W, -1).cpu().numpy()
                 # z_vals = z_vals.reshape(H, W, -1).cpu().numpy()
@@ -836,13 +836,27 @@ def train():
     if args.debug:
         return
     # Move training data to GPU
-    images = torch.Tensor(images).to(device)
-    poses = torch.Tensor(poses).to(device)
+    images = torch.Tensor(images).to(_DEVICE)
+    poses = torch.Tensor(poses).to(_DEVICE)
     if use_batching:
-        # rays_rgb = torch.Tensor(rays_rgb).to(device)
-        # rays_depth = torch.Tensor(rays_depth).to(device) if rays_depth is not None else None
-        raysRGB_iter = iter(DataLoader(RayDataset(rays_rgb), batch_size = N_rgb, shuffle=True, num_workers=0))
-        raysDepth_iter = iter(DataLoader(RayDataset(rays_depth), batch_size = N_depth, shuffle=True, num_workers=0)) if rays_depth is not None else None
+        rays_rgb = torch.Tensor(rays_rgb).to(_DEVICE)
+        rays_depth = torch.Tensor(rays_depth).to(_DEVICE) if rays_depth is not None else None
+        raysRGB_iter = iter(
+            DataLoader(
+                RayDataset(rays_rgb),
+                batch_size=N_rgb,
+                shuffle=True,
+                num_workers=0,
+                generator=torch.Generator(device=_DEVICE)))
+        raysDepth_iter = (
+            iter(
+                DataLoader(
+                    RayDataset(rays_depth),
+                    batch_size=N_depth,
+                    shuffle=True,
+                    num_workers=0,
+                    generator=torch.Generator(device=_DEVICE)))
+            if rays_depth is not None else None)
 
 
     N_iters = args.N_iters + 1
@@ -863,20 +877,33 @@ def train():
             # Random over all images
             # batch = rays_rgb[i_batch:i_batch+N_rand] # [B, 2+1, 3*?]
             try:
-                batch = next(raysRGB_iter).to(device)
+                batch = next(raysRGB_iter)
+                batch = batch.to(_DEVICE)
             except StopIteration:
-                raysRGB_iter = iter(DataLoader(RayDataset(rays_rgb), batch_size = N_rgb, shuffle=True, num_workers=0))
-                batch = next(raysRGB_iter).to(device)
+                raysRGB_iter = iter(
+                    DataLoader(
+                        RayDataset(rays_rgb),
+                        batch_size=N_rgb,
+                        shuffle=True,
+                        num_workers=0,
+                        generator=torch.Generator(device=_DEVICE)))
+                batch = next(raysRGB_iter).to(_DEVICE)
             batch = torch.transpose(batch, 0, 1)
             batch_rays, target_s = batch[:2], batch[2]
 
             if args.colmap_depth:
                 # batch_depth = rays_depth[i_batch:i_batch+N_rand]
                 try:
-                    batch_depth = next(raysDepth_iter).to(device)
+                    batch_depth = next(raysDepth_iter).to(_DEVICE)
                 except StopIteration:
-                    raysDepth_iter = iter(DataLoader(RayDataset(rays_depth), batch_size = N_depth, shuffle=True, num_workers=0))
-                    batch_depth = next(raysDepth_iter).to(device)
+                    raysDepth_iter = iter(
+                        DataLoader(
+                            RayDataset(rays_depth),
+                            batch_size=N_depth,
+                            shuffle=True,
+                            num_workers=0,
+                            generator=torch.Generator(device=_DEVICE)))
+                    batch_depth = next(raysDepth_iter).to(_DEVICE)
                 batch_depth = torch.transpose(batch_depth, 0, 1)
                 batch_rays_depth = batch_depth[:2] # 2 x B x 3
                 target_depth = batch_depth[2,:,0] # B
@@ -1052,7 +1079,7 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                rgbs, disps = render_path(torch.Tensor(poses[i_test]).to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                rgbs, disps = render_path(torch.Tensor(poses[i_test]).to(_DEVICE), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
 
             filenames = [os.path.join(testsavedir, '{:03d}.png'.format(k)) for k in range(len(i_test))]
