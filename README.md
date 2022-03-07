@@ -11,7 +11,7 @@ Pytorch implementation of DS-NeRF. DS-NeRF can improve the training of neural ra
 
 [Depth-supervised NeRF: Fewer Views and Faster Training for Free](https://www.cs.cmu.edu/~dsnerf/)
 
-arXiv 2107.02791, 2021
+CVPR, 2022
 
  [Kangle Deng](https://dunbar12138.github.io/)<sup>1</sup>,
  [Andrew Liu](https://andrewhliu.github.io/)<sup>2</sup>,
@@ -141,11 +141,12 @@ We provide a tutorial on how to use depth-supervised loss in your own project [h
 
 If you find this repository useful for your research, please cite the following work.
 ```
-@article{kangle2021dsnerf,
-  title={Depth-supervised NeRF: Fewer Views and Faster Training for Free},
-  author={Deng, Kangle and Liu, Andrew and Zhu, Jun-Yan and Ramanan, Deva},
-  journal={arXiv preprint arXiv:2107.02791},
-  year={2021}
+@InProceedings{kangle2021dsnerf,
+    author    = {Deng, Kangle and Liu, Andrew and Zhu, Jun-Yan and Ramanan, Deva},
+    title     = {Depth-supervised {NeRF}: Fewer Views and Faster Training for Free},
+    booktitle = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     = {June},
+    year      = {2022}
 }
 ```
 
