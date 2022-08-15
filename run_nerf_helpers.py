@@ -13,8 +13,10 @@ from matplotlib import pyplot as plt
 
 # Misc
 img2mse = lambda x, y : torch.mean((x - y) ** 2)
-mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]))
+mse2psnr = lambda x : -10. * torch.log(x) / torch.log(torch.Tensor([10.]).to(device))
 to8b = lambda x : (255*np.clip(x,0,1)).astype(np.uint8)
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 # Positional encoding (section 5.1)
@@ -319,7 +321,7 @@ def sample_pdf(bins, weights, N_samples, det=False, pytest=False):
         u = torch.Tensor(u)
 
     # Invert CDF
-    u = u.contiguous()
+    u = u.contiguous().to(device)
     inds = searchsorted(cdf, u, right=True)
     below = torch.max(torch.zeros_like(inds-1), inds-1)
     above = torch.min((cdf.shape[-1]-1) * torch.ones_like(inds), inds)
@@ -354,7 +356,7 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
     raw2alpha = lambda raw, dists, act_fn=F.relu: 1.-torch.exp(-act_fn(raw)*dists)
 
     dists = z_vals[...,1:] - z_vals[...,:-1]
-    dists = torch.cat([dists, torch.Tensor([1e10]).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
+    dists = torch.cat([dists, torch.Tensor([1e10]).to(device).expand(dists[...,:1].shape)], -1)  # [N_rays, N_samples]
 
     dists = dists * torch.norm(rays_d[...,None,:], dim=-1)
 
@@ -368,10 +370,11 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
             np.random.seed(0)
             noise = np.random.rand(*list(raw[...,3].shape)) * raw_noise_std
             noise = torch.Tensor(noise)
+        noise = noise.to(device)
 
     alpha = raw2alpha(raw[...,3] + noise, dists)  # [N_rays, N_samples]
     # weights = alpha * tf.math.cumprod(1.-alpha + 1e-10, -1, exclusive=True)
-    weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)), 1.-alpha + 1e-10], -1), -1)[:, :-1]
+    weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)).to(device), 1.-alpha + 1e-10], -1), -1)[:, :-1]
     rgb_map = torch.sum(weights[...,None] * rgb, -2)  # [N_rays, 3]
 
     depth_map = torch.sum(weights * z_vals, -1)
@@ -380,6 +383,9 @@ def raw2outputs(raw, z_vals, rays_d, raw_noise_std=0, white_bkgd=False, pytest=F
 
     if white_bkgd:
         rgb_map = rgb_map + (1.-acc_map[...,None])
+
+    rgb_var = torch.sum(weights[...,None] * (rgb - rgb_map.reshape(-1, 1, 3)) ** 2, -2)
+    depth_var = torch.sum(weights * (z_vals - depth_map.reshape(-1, 1)) ** 2, -1)
 
     return rgb_map, disp_map, acc_map, weights, depth_map
 

@@ -66,16 +66,25 @@ You will also need [COLMAP](https://github.com/colmap/colmap) installed to compu
 
 ### Data
 
-Download data for the example scene: `fern_2v`
+<!-- Download data for the example scene: `fern_2v`
 ```
 bash download_example_data.sh
-```
+``` -->
 
-To play with other scenes presented in the paper, download the data [here](https://drive.google.com/drive/folders/14boI-o5hGO9srnWaaogTU5_ji7wkX2S7).
+Download the LLFF dataset [here](https://drive.google.com/file/d/1RjhfcbsywOvw0ts1AFSri91mKANvEVOa/view?usp=sharing).
+
+To play with other scenes presented in the paper, download the data [here](https://drive.google.com/drive/folders/1PsT3uKwqHHD2bEEHkIXB99AlIjtmrEiR?usp=sharing).
+
 
 ### Pre-trained Models
 
-You can download the pre-trained models [here](https://drive.google.com/drive/folders/1lby-G4163NFi7Ue4rdB9D0cM67d7oskr?usp=sharing). Place the downloaded directory in `./logs` in order to test it later. See the following directory structure for an example:
+<!-- You can download the pre-trained models [here](https://drive.google.com/drive/folders/1lby-G4163NFi7Ue4rdB9D0cM67d7oskr?usp=sharing). Place the downloaded directory in `./logs` in order to test it later.  -->
+You can download our pre-trained models using the following script:
+```
+bash download_models.sh
+```
+
+See the following directory structure for an example:
 ```
 ├── logs 
 │   ├── fern_2v    # downloaded logs
@@ -101,6 +110,9 @@ To generate the poses and sparse point cloud:
 ```
 python imgs2poses.py <your_scenedir>
 ```
+
+Note: if you use this data format, make sure your `dataset_type` in the config file is set as `llff`.
+
 
 #### Testing
 

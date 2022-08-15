@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from run_nerf_helpers import *
 
-from load_llff import load_llff_data, load_colmap_depth
+from load_llff import load_llff_data, load_colmap_depth, load_colmap_llff
 from load_dtu import load_dtu_data
 
 from loss import SigmaLoss
@@ -628,8 +628,28 @@ def train():
     parser = config_parser()
     args = parser.parse_args()
 
-
-    if args.dataset_type == 'llff':
+    if args.dataset_type == 'colmap_llff':
+        train_imgs, test_imgs, train_poses, test_poses, render_poses, depth_gts, bds = load_colmap_llff(args.datadir)
+        poses = np.concatenate([train_poses, test_poses], axis=0)
+        images = np.concatenate([train_imgs, test_imgs], axis=0)
+        hwf = train_poses[0, :3, -1]
+        train_poses = train_poses[:, :3, :4]
+        test_poses = test_poses[:, :3, :4]
+        poses = poses[:, :3, :4]
+        print('Loaded colmap llff', images.shape, render_poses.shape, hwf, args.datadir)
+        i_train = list(range(train_poses.shape[0]))
+        i_test = list(range(train_poses.shape[0], poses.shape[0]))
+        i_val = i_test
+        print('DEFINING BOUNDS')
+        if args.no_ndc:
+            near = np.ndarray.min(bds) * .9
+            far = np.ndarray.max(bds) * 1.
+            
+        else:
+            near = 0.
+            far = 1.
+        print('NEAR FAR', near, far)
+    elif args.dataset_type == 'llff':
         if args.colmap_depth:
             depth_gts = load_colmap_depth(args.datadir, factor=args.factor, bd_factor=.75)
         images, poses, bds, render_poses, i_test = load_llff_data(args.datadir, args.factor,
@@ -815,7 +835,7 @@ def train():
                 # print(rays_depth.shape)
                 rays_depth = np.transpose(rays_depth, [1,0,2])
                 depth_value = np.repeat(depth_gts[i]['depth'][:,None,None], 3, axis=2) # N x 1 x 3
-                weights = np.repeat(depth_gts[i]['weight'][:,None,None], 3, axis=2) # N x 1 x 3
+                weights = np.repeat(depth_gts[i]['error'][:,None,None], 3, axis=2) # N x 1 x 3
                 rays_depth = np.concatenate([rays_depth, depth_value, weights], axis=1) # N x 4 x 3
                 rays_depth_list.append(rays_depth)
 
@@ -947,7 +967,7 @@ def train():
             acc = acc[:N_batch]
             depth, depth_col = depth[:N_batch], depth[N_batch:]
             extras = {x:extras[x][:N_batch] for x in extras}
-            # extras_col = extras[N_rand:, :]
+            extras_col = {x:extras[x][N_batch:] for x in extras}
 
         elif args.colmap_depth and args.depth_with_rgb:
             depth_col = depth
@@ -1109,6 +1129,6 @@ def train():
 
 
 if __name__=='__main__':
-    torch.set_default_tensor_type('torch.cuda.FloatTensor')
+    # torch.set_default_tensor_type('torch.cuda.FloatTensor')
 
     train()

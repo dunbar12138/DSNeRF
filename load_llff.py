@@ -438,7 +438,18 @@ def load_sensor_depth(basedir, factor=8, bd_factor=.75):
     np.save(data_file, data_list)
     return data_list
 
-    
+def load_colmap_llff(basedir):
+    basedir = Path(basedir)
+
+    train_imgs = np.load(basedir / 'train_images.npy')
+    test_imgs = np.load(basedir / 'test_images.npy')
+    train_poses = np.load(basedir / 'train_poses.npy')
+    test_poses = np.load(basedir / 'test_poses.npy')
+    video_poses = np.load(basedir / 'video_poses.npy')
+    depth_data = np.load(basedir / 'train_depths.npy', allow_pickle=True)
+    bds = np.load(basedir / 'bds.npy')
+
+    return train_imgs, test_imgs, train_poses, test_poses, video_poses, depth_data, bds
 
     
 
