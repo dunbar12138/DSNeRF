@@ -1,6 +1,6 @@
-expname = fern_2v
+expname = leaves_2v
 basedir = ./logs/release
-datadir = ./data/split_allview_npy/fern_2view
+datadir = ./data/split_allview_npy/leaves_2view
 dataset_type = colmap_llff
 factor = 4
 llffhold = 8
