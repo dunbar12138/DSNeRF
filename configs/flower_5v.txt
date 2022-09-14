@@ -1,7 +1,7 @@
-expname = fern_2v_debug
+expname = flower_3v
 basedir = ./logs
-datadir = ./data/fern_2view
-dataset_type = llff
+datadir = ./data/split_allview_npy/flower_5view
+dataset_type = colmap_llff
 factor = 4
 llffhold = 8
 N_rand = 1024

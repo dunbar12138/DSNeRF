@@ -1,9 +1,11 @@
+from unicodedata import name
 import numpy as np
 import os, imageio
 from pathlib import Path
 from colmapUtils.read_write_model import *
 from colmapUtils.read_write_dense import *
 import json
+import torch
 
 
 ########## Slightly modified version of LLFF data loading code 
@@ -336,6 +338,33 @@ def get_poses(images):
         poses.append(c2w)
     return np.array(poses)
 
+def load_tof_depth(basedir, factor = None, bd_factor= None):
+    data_file = Path(basedir) / 'tof_depth.npy'
+
+    file_path = os.path.join(basedir, 'depth')
+    imgfiles = [os.path.join(file_path, f) for f in sorted(os.listdir(file_path)) if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')]
+
+    data_list = []
+    for i in imgfiles:
+        # 目前默认全部像素都有depth
+        depth_img = imageio.imread(i) # 和RGB图片一一对应
+        H, W = depth_img.shape
+        r_map = depth_img[:,:,0] # 4000~6000
+        g_map = depth_img[:,:,1] # 2000~4000
+        b_map = depth_img[:,:,2] # 1000~2000
+        depth_map = (r_map + g_map + b_map) / 3  # 系数可更改
+        # ToF拍摄的深度图有误差，此处可考虑添加ToF不精准点筛选
+        print(i + ': ', depth_map.shape, np.min(depth_map), np.max(depth_map), np.mean(depth_map))
+        x, y = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
+        x = x.t().reshape(-1)
+        y = y.t().reshape(-1)
+        coord_list = np.stack([x, y], axis=-1)
+        data_list.append({"depth":depth_map.reshape(-1), "coord":np.array(coord_list), "weight":np.ones_like(depth_map)})
+
+    np.save(data_file, data_list)
+    return data_list
+
+
 def load_colmap_depth(basedir, factor=8, bd_factor=.75):
     data_file = Path(basedir) / 'colmap_depth.npy'
     
@@ -368,7 +397,7 @@ def load_colmap_depth(basedir, factor=8, bd_factor=.75):
             if id_3D == -1:
                 continue
             point3D = points[id_3D].xyz
-            depth = (poses[id_im-1,:3,2].T @ (point3D - poses[id_im-1,:3,3])) * sc
+            depth = (poses[id_im-1,:3,2].T @ (point3D - poses[id_im-1,:3,3])) * sc 
             if depth < bds_raw[id_im-1,0] * sc or depth > bds_raw[id_im-1,1] * sc:
                 continue
             err = points[id_3D].error
@@ -452,4 +481,3 @@ def load_colmap_llff(basedir):
     return train_imgs, test_imgs, train_poses, test_poses, video_poses, depth_data, bds
 
     
-

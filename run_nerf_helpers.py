@@ -251,9 +251,9 @@ def get_rays(H, W, focal, c2w):
     j = j.t()
     dirs = torch.stack([(i-W*.5)/focal, -(j-H*.5)/focal, -torch.ones_like(i)], -1)
     # Rotate ray directions from camera frame to the world frame
-    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
+    rays_d = torch.sum(dirs[..., np.newaxis, :] * c2w[:3,:3].cpu().numpy(), -1)  # dot product, equals to: [c2w.dot(dir) for dir in dirs]
     # Translate camera frame's origin to the world frame. It is the origin of all rays.
-    rays_o = c2w[:3,-1].expand(rays_d.shape)
+    rays_o = c2w[:3,-1].expand(rays_d.shape).cpu()
     return rays_o, rays_d
 
 
@@ -268,7 +268,7 @@ def get_rays_np(H, W, focal, c2w):
 
 
 def get_rays_by_coord_np(H, W, focal, c2w, coords):
-    i, j = (coords[:,0]-W*0.5)/focal, -(coords[:,1]-H*0.5)/focal
+    i, j = (coords[:,0]-W*0.5)/focal, -(coords[:,1]-H*0.5)/focal              
     dirs = np.stack([i,j,-np.ones_like(i)],-1)
     rays_d = np.sum(dirs[..., np.newaxis, :] * c2w[:3,:3], -1)
     rays_o = np.broadcast_to(c2w[:3,-1], np.shape(rays_d))

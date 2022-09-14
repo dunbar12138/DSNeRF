@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 from run_nerf_helpers import *
 
-from load_llff import load_llff_data, load_colmap_depth, load_colmap_llff
+from load_llff import load_llff_data, load_colmap_depth, load_colmap_llff, load_tof_depth
 from load_dtu import load_dtu_data
 
 from loss import SigmaLoss
@@ -29,7 +29,7 @@ import cv2
 
 # concate_time, iter_time, split_time, loss_time, backward_time = [], [], [], [], []
 
-
+torch.cuda.set_device(1)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # torch.cuda.set_device(2)
 np.random.seed(0)
@@ -75,6 +75,7 @@ def batchify_rays(rays_flat, chunk=1024*32, **kwargs):
             all_ret[k].append(ret[k])
 
     all_ret = {k : torch.cat(all_ret[k], 0) for k in all_ret}
+
     return all_ret
 
 
@@ -126,10 +127,13 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
         rays_o, rays_d = ndc_rays(H, W, focal, 1., rays_o, rays_d)
 
     # Create ray batch
+    # if not torch.is_tensor(rays_o):
+    #     rays_o = torch.Tensor(rays_o)
     rays_o = torch.reshape(rays_o, [-1,3]).float()
     rays_d = torch.reshape(rays_d, [-1,3]).float()
 
     near, far = near * torch.ones_like(rays_d[...,:1]), far * torch.ones_like(rays_d[...,:1])
+    
     rays = torch.cat([rays_o, rays_d, near, far], -1) # B x 8
     if depths is not None:
         rays = torch.cat([rays, depths.reshape(-1,1)], -1)
@@ -142,6 +146,7 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
         k_sh = list(sh[:-1]) + list(all_ret[k].shape[1:])
         all_ret[k] = torch.reshape(all_ret[k], k_sh)
 
+    # k_extract = ['rgb_map', 'disp_map', 'depth_map']
     k_extract = ['rgb_map', 'disp_map', 'acc_map', 'depth_map']
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
@@ -165,9 +170,10 @@ def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=N
     for i, c2w in enumerate(tqdm(render_poses)):
         print(i, time.time() - t)
         t = time.time()
-        rgb, disp, acc, depth, extras = render(H, W, focal, chunk=chunk, c2w=c2w[:3,:4], retraw=True, **render_kwargs)
+        rgb, disp, acc, depth, _ = render(H, W, focal, chunk=chunk, c2w=c2w[:3,:4], retraw=True, **render_kwargs)
         rgbs.append(rgb.cpu().numpy())
         disps.append(disp.cpu().numpy())
+        torch.cuda.empty_cache()
         if i==0:
             print(rgb.shape, disp.shape)
 
@@ -383,13 +389,26 @@ def render_rays(ray_batch,
       z_std: [num_rays]. Standard deviation of distances along ray for each
         sample.
     """
-    N_rays = ray_batch.shape[0]
-    rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
-    viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 9 else None
-    bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
+    if ray_batch.device.type=='cpu':
+        ray_batch_d = ray_batch.to(device)
+        N_rays = ray_batch_d.shape[0]
+        rays_o, rays_d = ray_batch_d[:,0:3], ray_batch_d[:,3:6] # [N_rays, 3] each
+        viewdirs = ray_batch_d[:,-3:] if ray_batch_d.shape[-1] > 9 else None
+        bounds = torch.reshape(ray_batch_d[...,6:8], [-1,1,2])
+    else:
+        N_rays = ray_batch.shape[0]
+        rays_o, rays_d = ray_batch[:,0:3], ray_batch[:,3:6] # [N_rays, 3] each
+        viewdirs = ray_batch[:,-3:] if ray_batch.shape[-1] > 9 else None
+        bounds = torch.reshape(ray_batch[...,6:8], [-1,1,2])
     near, far = bounds[...,0], bounds[...,1] # [-1,1]
 
+    # if bounds.device.type=='cuda':
+    #     t_vals = torch.linspace(0., 1., steps=N_samples).to(device)
+    # else:
+    #     t_vals = torch.linspace(0., 1., steps=N_samples)
+
     t_vals = torch.linspace(0., 1., steps=N_samples).to(device)
+
     if not lindisp:
         z_vals = near * (1.-t_vals) + far * (t_vals)
     else:
@@ -451,13 +470,13 @@ def render_rays(ray_batch,
         rgb_map, disp_map, acc_map, weights, depth_map = raw2outputs(raw, z_vals, rays_d, raw_noise_std, white_bkgd, pytest=pytest)
 
     ret = {'rgb_map' : rgb_map, 'disp_map' : disp_map, 'acc_map' : acc_map, 'depth_map' : depth_map}
-    if retraw:
-        ret['raw'] = raw
-    if N_importance > 0:
-        ret['rgb0'] = rgb_map_0
-        ret['disp0'] = disp_map_0
-        ret['acc0'] = acc_map_0
-        ret['z_std'] = torch.std(z_samples, dim=-1, unbiased=False)  # [N_rays]
+    # if retraw:
+    #     ret['raw'] = raw
+    # if N_importance > 0:
+    #     ret['rgb0'] = rgb_map_0
+        # ret['disp0'] = disp_map_0
+        # ret['acc0'] = acc_map_0
+        # ret['z_std'] = torch.std(z_samples, dim=-1, unbiased=False)  # [N_rays]
 
     if sigma_loss is not None and ray_batch.shape[-1] > 11:
         depths = ray_batch[:,8]
@@ -474,7 +493,7 @@ def config_parser():
 
     import configargparse
     parser = configargparse.ArgumentParser()
-    parser.add_argument('--config', is_config_file=True, 
+    parser.add_argument('--config', is_config_file=True,
                         help='config file path')
     parser.add_argument("--expname", type=str, 
                         help='experiment name')
@@ -498,9 +517,9 @@ def config_parser():
                         help='learning rate')
     parser.add_argument("--lrate_decay", type=int, default=250, 
                         help='exponential learning rate decay (in 1000 steps)')
-    parser.add_argument("--chunk", type=int, default=1024*32, 
+    parser.add_argument("--chunk", type=int, default=1024, 
                         help='number of rays processed in parallel, decrease if running out of memory')
-    parser.add_argument("--netchunk", type=int, default=1024*64, 
+    parser.add_argument("--netchunk", type=int, default=1024, 
                         help='number of pts sent through network in parallel, decrease if running out of memory')
     parser.add_argument("--no_batching", action='store_true', 
                         help='only take random rays from 1 image at a time')
@@ -649,6 +668,48 @@ def train():
             near = 0.
             far = 1.
         print('NEAR FAR', near, far)
+
+    elif args.dataset_type == 'tof_llff':
+        if args.colmap_depth:
+            depth_gts = load_tof_depth(args.datadir)
+        images, poses, bds, render_poses, i_test = load_llff_data(args.datadir, args.factor,
+                                                                  recenter=True, bd_factor=None,
+                                                                  spherify=args.spherify)
+        hwf = poses[0,:3,-1]
+        poses = poses[:,:3,:4]
+        print('Loaded llff', images.shape, render_poses.shape, hwf, args.datadir)
+        if not isinstance(i_test, list):
+            i_test = [i_test]
+
+        if args.llffhold > 0:
+            print('Auto LLFF holdout,', args.llffhold)
+            i_test = np.arange(images.shape[0])[::args.llffhold]
+
+        if args.test_scene is not None:
+            i_test = np.array([i for i in args.test_scene])
+
+        if i_test[0] < 0:
+            i_test = []
+
+        i_val = i_test
+        if args.train_scene is None:
+            i_train = np.array([i for i in np.arange(int(images.shape[0])) if
+                        (i not in i_test and i not in i_val)])
+        else:
+            i_train = np.array([i for i in args.train_scene if
+                        (i not in i_test and i not in i_val)])
+        
+        print('DEFINING BOUNDS')
+        if args.no_ndc:
+            near = np.ndarray.min(bds) * .9
+            far = np.ndarray.max(bds) * 1.
+            
+        else:
+            near = 0.
+            far = 1.
+        print('NEAR FAR', near, far)        
+
+
     elif args.dataset_type == 'llff':
         if args.colmap_depth:
             depth_gts = load_colmap_depth(args.datadir, factor=args.factor, bd_factor=.75)
@@ -678,7 +739,7 @@ def train():
         else:
             i_train = np.array([i for i in args.train_scene if
                         (i not in i_test and i not in i_val)])
-
+        
         print('DEFINING BOUNDS')
         if args.no_ndc:
             near = np.ndarray.min(bds) * .9
@@ -812,7 +873,7 @@ def train():
     if use_batching:
         # For random ray batching
         print('get rays')
-        rays = np.stack([get_rays_np(H, W, focal, p) for p in poses[:,:3,:4]], 0) # [N, ro+rd, H, W, 3]
+        rays = np.stack([get_rays_np(H, W, focal, p) for p in poses[:,:3,:4]], 0) # [N, ro+rd, H, W, 3] 
         if args.debug:
             print('rays.shape:', rays.shape)
         print('done, concats')
@@ -831,11 +892,11 @@ def train():
             print('get depth rays')
             rays_depth_list = []
             for i in i_train:
-                rays_depth = np.stack(get_rays_by_coord_np(H, W, focal, poses[i,:3,:4], depth_gts[i]['coord']), axis=0) # 2 x N x 3
-                # print(rays_depth.shape)
-                rays_depth = np.transpose(rays_depth, [1,0,2])
+                rays_depth = np.stack(get_rays_by_coord_np(H, W, focal, poses[i,:3,:4], depth_gts[i]['coord']), axis=0) # 2 x N x 3 N为特征点数量1077
+                print('rays_depth: ', rays_depth.shape)
+                rays_depth = np.transpose(rays_depth, [1,0,2]) # N,ro+rd // N x 2 x 3
                 depth_value = np.repeat(depth_gts[i]['depth'][:,None,None], 3, axis=2) # N x 1 x 3
-                weights = np.repeat(depth_gts[i]['error'][:,None,None], 3, axis=2) # N x 1 x 3
+                weights = np.repeat(depth_gts[i]['weight'][:,None,None], 3, axis=2) # N x 1 x 3
                 rays_depth = np.concatenate([rays_depth, depth_value, weights], axis=1) # N x 4 x 3
                 rays_depth_list.append(rays_depth)
 
@@ -849,7 +910,7 @@ def train():
             print('shuffle depth rays')
             np.random.shuffle(rays_depth)
 
-            max_depth = np.max(rays_depth[:,3,0])
+            max_depth = np.max(rays_depth[:,2,0])
         print('done')
         i_batch = 0
 
@@ -863,7 +924,6 @@ def train():
         # rays_depth = torch.Tensor(rays_depth).to(device) if rays_depth is not None else None
         raysRGB_iter = iter(DataLoader(RayDataset(rays_rgb), batch_size = N_rgb, shuffle=True, num_workers=0))
         raysDepth_iter = iter(DataLoader(RayDataset(rays_depth), batch_size = N_depth, shuffle=True, num_workers=0)) if rays_depth is not None else None
-
 
     N_iters = args.N_iters + 1
     print('Begin')
@@ -953,9 +1013,9 @@ def train():
         # timer_concate = time.perf_counter()
 
 
-        rgb, disp, acc, depth, extras = render(H, W, focal, chunk=args.chunk, rays=batch_rays,
+        rgb, disp, acc, depth, _ = render(H, W, focal, chunk=args.chunk, rays=batch_rays,
                                                 verbose=i < 10, retraw=True,
-                                                **render_kwargs_train)
+                                                **render_kwargs_train)  # (N*2,)
         # timer_iter = time.perf_counter()
 
         if args.colmap_depth and not args.depth_with_rgb:
@@ -966,8 +1026,8 @@ def train():
             disp = disp[:N_batch]
             acc = acc[:N_batch]
             depth, depth_col = depth[:N_batch], depth[N_batch:]
-            extras = {x:extras[x][:N_batch] for x in extras}
-            extras_col = {x:extras[x][N_batch:] for x in extras}
+            # extras = {x:extras[x][:N_batch] for x in extras}
+            # extras_col = {x:extras[x][N_batch:] for x in extras}
 
         elif args.colmap_depth and args.depth_with_rgb:
             depth_col = depth
@@ -992,16 +1052,16 @@ def train():
         if args.sigma_loss:
             sigma_loss = extras_col['sigma_loss'].mean()
             # print(sigma_loss)
-        trans = extras['raw'][...,-1]
+        # trans = extras['raw'][...,-1]
         loss = img_loss + args.depth_lambda * depth_loss + args.sigma_lambda * sigma_loss
         psnr = mse2psnr(img_loss)
 
         # timer_loss = time.perf_counter()
 
-        if 'rgb0' in extras and not args.no_coarse:
-            img_loss0 = img2mse(extras['rgb0'], target_s)
-            loss = loss + img_loss0
-            psnr0 = mse2psnr(img_loss0)
+        # if 'rgb0' in extras and not args.no_coarse:
+        #     img_loss0 = img2mse(extras['rgb0'], target_s)
+        #     loss = loss + img_loss0
+        #     psnr0 = mse2psnr(img_loss0)
 
         loss.backward()
         optimizer.step()
@@ -1072,13 +1132,15 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                rgbs, disps = render_path(torch.Tensor(poses[i_test]).to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                rgbs, disps = render_path(poses[i_test], hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
 
             filenames = [os.path.join(testsavedir, '{:03d}.png'.format(k)) for k in range(len(i_test))]
 
-            test_loss = img2mse(torch.Tensor(rgbs), images[i_test])
+            test_loss = img2mse(torch.Tensor(rgbs), images[i_test].cpu())
             test_psnr = mse2psnr(test_loss)
+            print('test_loss: ', test_loss.item())
+            print('test_PSNR: ', test_psnr.item())
 
     
         if i%args.i_print==0:
