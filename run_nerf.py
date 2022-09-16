@@ -672,7 +672,7 @@ def train():
     elif args.dataset_type == 'tof_llff':
         if args.colmap_depth:
             depth_gts = load_tof_depth(args.datadir)
-        images, poses, bds, render_poses, i_test = load_llff_data(args.datadir, args.factor,
+        images, poses, bds, render_poses, i_test = load_llff_data(args.datadir, None,
                                                                   recenter=True, bd_factor=None,
                                                                   spherify=args.spherify)
         hwf = poses[0,:3,-1]
@@ -777,6 +777,10 @@ def train():
     # Cast intrinsics to right types
     H, W, focal = hwf
     H, W = int(H), int(W)
+
+    # only for people test
+    focal = focal / 2
+
     hwf = [H, W, focal]
 
     if args.render_test:

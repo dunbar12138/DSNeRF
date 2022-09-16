@@ -69,7 +69,12 @@ def _load_data(basedir, factor=None, width=None, height=None, load_imgs=True):
     
     poses_arr = np.load(os.path.join(basedir, 'poses_bounds.npy'))
     poses = poses_arr[:, :-2].reshape([-1, 3, 5]).transpose([1,2,0]) # 3 x 5 x N
-    bds = poses_arr[:, -2:].transpose([1,0])
+
+    # only for test people
+    poses = poses[:,:,[0,2,6,7,8,11]]
+    bds = poses_arr[[0,2,6,7,8,11], -2:].transpose([1,0])
+
+    # bds = poses_arr[:, -2:].transpose([1,0])
     
     img0 = [os.path.join(basedir, 'images', f) for f in sorted(os.listdir(os.path.join(basedir, 'images'))) \
             if f.endswith('JPG') or f.endswith('jpg') or f.endswith('png')][0]
@@ -348,18 +353,18 @@ def load_tof_depth(basedir, factor = None, bd_factor= None):
     for i in imgfiles:
         # 目前默认全部像素都有depth
         depth_img = imageio.imread(i) # 和RGB图片一一对应
-        H, W = depth_img.shape
+        H, W = depth_img.shape[:2]
         r_map = depth_img[:,:,0] # 4000~6000
         g_map = depth_img[:,:,1] # 2000~4000
         b_map = depth_img[:,:,2] # 1000~2000
-        depth_map = (r_map + g_map + b_map) / 3  # 系数可更改
+        depth_map = (r_map + g_map + b_map) / 3 / 255  # 系数可更改
         # ToF拍摄的深度图有误差，此处可考虑添加ToF不精准点筛选
         print(i + ': ', depth_map.shape, np.min(depth_map), np.max(depth_map), np.mean(depth_map))
         x, y = torch.meshgrid(torch.linspace(0, W-1, W), torch.linspace(0, H-1, H))  # pytorch's meshgrid has indexing='ij'
         x = x.t().reshape(-1)
         y = y.t().reshape(-1)
         coord_list = np.stack([x, y], axis=-1)
-        data_list.append({"depth":depth_map.reshape(-1), "coord":np.array(coord_list), "weight":np.ones_like(depth_map)})
+        data_list.append({"depth":depth_map.reshape(-1), "coord":np.array(coord_list), "weight":np.ones_like(depth_map.reshape(-1))})
 
     np.save(data_file, data_list)
     return data_list
