@@ -9,7 +9,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
-import wandb
 
 import matplotlib.pyplot as plt
 
@@ -481,8 +480,6 @@ def config_parser():
                         help='config file path')
     parser.add_argument("--expname", type=str, 
                         help='experiment name')
-    parser.add_argument("--name", type=str, 
-                        help='wanb name')
     parser.add_argument("--basedir", type=str, default='./logs/', 
                         help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/llff/fern', 
@@ -634,7 +631,6 @@ def train():
     parser = config_parser()
     args = parser.parse_args()
     # init wanb session 
-    wandb.init(project="nerf", entity="yasmeen", name=args.name)
 
 
     if args.dataset_type == 'colmap_llff':
@@ -877,10 +873,6 @@ def train():
 
     N_iters = args.N_iters + 1
     B, _, _ = rays_rgb.shape
-    wandb.config = {
-    "learning_rate": args.lrate,
-    "epochs": N_iters,
-    "batch_size": B}
 
     print('Begin')
     print('TRAIN views are', i_train)
@@ -1050,7 +1042,6 @@ def train():
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
 
-        wandb.config.update({"lr": new_lrate})
         ################################
 
         dt = time.time()-time0
@@ -1101,7 +1092,6 @@ def train():
     
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")
-            wandb.log({"loss": loss.item(), "epoch": i, 'psnr': psnr.item() })
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
             print('iter time {:.05f}'.format(dt))
