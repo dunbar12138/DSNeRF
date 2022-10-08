@@ -27,9 +27,6 @@ from utils.generate_renderpath import generate_renderpath
 import cv2
 # import time
 
-
-
-
 # concate_time, iter_time, split_time, loss_time, backward_time = [], [], [], [], []
 
 
@@ -149,6 +146,7 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
+
 
 def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
 
@@ -622,7 +620,6 @@ def config_parser():
                     help="normalize depth before calculating loss")
     parser.add_argument("--depth_rays_prop", type=float, default=0.5,
                         help="Proportion of depth rays.")
-    
     return parser
 
 
@@ -630,8 +627,6 @@ def train():
 
     parser = config_parser()
     args = parser.parse_args()
-    # init wanb session 
-
 
     if args.dataset_type == 'colmap_llff':
         train_imgs, test_imgs, train_poses, test_poses, render_poses, depth_gts, bds = load_colmap_llff(args.datadir)
@@ -797,7 +792,6 @@ def train():
                 print("Estimated depth:", depth_maps[0].cpu().numpy())
                 print(depth_gts[index_pose]['coord'])
             else:
-
                 rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
                 print('Done rendering', testsavedir)
                 imageio.mimwrite(os.path.join(testsavedir, 'rgb.mp4'), to8b(rgbs), fps=30, quality=8)
@@ -872,8 +866,6 @@ def train():
 
 
     N_iters = args.N_iters + 1
-    B, _, _ = rays_rgb.shape
-
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -927,7 +919,7 @@ def train():
             target = images[img_i]
             pose = poses[img_i, :3,:4]
 
-            if args.N_rand is not None:
+             if args.N_rand is not None:
                 rays_o, rays_d = get_rays(H, W, focal, torch.Tensor(pose))  # (H, W, 3), (H, W, 3)
 
                 if i < args.precrop_iters:
@@ -1041,7 +1033,6 @@ def train():
         new_lrate = args.lrate * (decay_rate ** (global_step / decay_steps))
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
-
         ################################
 
         dt = time.time()-time0
@@ -1095,17 +1086,13 @@ def train():
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
             print('iter time {:.05f}'.format(dt))
-
             with tf.contrib.summary.record_summaries_every_n_global_steps(args.i_print):
                 tf.contrib.summary.scalar('loss', loss)
                 tf.contrib.summary.scalar('psnr', psnr)
                 tf.contrib.summary.histogram('tran', trans)
                 if args.N_importance > 0:
                     tf.contrib.summary.scalar('psnr0', psnr0)
-
-
             if i%args.i_img==0:
-
                 # Log a rendered validation view to Tensorboard
                 img_i=np.random.choice(i_val)
                 target = images[img_i]
@@ -1113,21 +1100,14 @@ def train():
                 with torch.no_grad():
                     rgb, disp, acc, extras = render(H, W, focal, chunk=args.chunk, c2w=pose,
                                                         **render_kwargs_test)
-
                 psnr = mse2psnr(img2mse(rgb, target))
-
                 with tf.contrib.summary.record_summaries_every_n_global_steps(args.i_img):
-
                     tf.contrib.summary.image('rgb', to8b(rgb)[tf.newaxis])
                     tf.contrib.summary.image('disp', disp[tf.newaxis,...,tf.newaxis])
                     tf.contrib.summary.image('acc', acc[tf.newaxis,...,tf.newaxis])
-
                     tf.contrib.summary.scalar('psnr_holdout', psnr)
                     tf.contrib.summary.image('rgb_holdout', target[tf.newaxis])
-
-
                 if args.N_importance > 0:
-
                     with tf.contrib.summary.record_summaries_every_n_global_steps(args.i_img):
                         tf.contrib.summary.image('rgb0', to8b(extras['rgb0'])[tf.newaxis])
                         tf.contrib.summary.image('disp0', extras['disp0'][tf.newaxis,...,tf.newaxis])
