@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm, trange
+import wandb
 
 import matplotlib.pyplot as plt
 
@@ -26,6 +27,9 @@ from torch.utils.data import DataLoader
 from utils.generate_renderpath import generate_renderpath
 import cv2
 # import time
+
+
+
 
 # concate_time, iter_time, split_time, loss_time, backward_time = [], [], [], [], []
 
@@ -146,7 +150,6 @@ def render(H, W, focal, chunk=1024*32, rays=None, c2w=None, ndc=True,
     ret_list = [all_ret[k] for k in k_extract]
     ret_dict = {k : all_ret[k] for k in all_ret if k not in k_extract}
     return ret_list + [ret_dict]
-
 
 def render_path(render_poses, hwf, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
 
@@ -478,6 +481,8 @@ def config_parser():
                         help='config file path')
     parser.add_argument("--expname", type=str, 
                         help='experiment name')
+    parser.add_argument("--name", type=str, 
+                        help='wanb name')
     parser.add_argument("--basedir", type=str, default='./logs/', 
                         help='where to store ckpts and logs')
     parser.add_argument("--datadir", type=str, default='./data/llff/fern', 
@@ -620,6 +625,7 @@ def config_parser():
                     help="normalize depth before calculating loss")
     parser.add_argument("--depth_rays_prop", type=float, default=0.5,
                         help="Proportion of depth rays.")
+    
     return parser
 
 
@@ -627,6 +633,9 @@ def train():
 
     parser = config_parser()
     args = parser.parse_args()
+    # init wanb session 
+    wandb.init(project="nerf", entity="yasmeen", name=args.name)
+
 
     if args.dataset_type == 'colmap_llff':
         train_imgs, test_imgs, train_poses, test_poses, render_poses, depth_gts, bds = load_colmap_llff(args.datadir)
@@ -792,6 +801,7 @@ def train():
                 print("Estimated depth:", depth_maps[0].cpu().numpy())
                 print(depth_gts[index_pose]['coord'])
             else:
+
                 rgbs, disps = render_path(render_poses, hwf, args.chunk, render_kwargs_test, gt_imgs=images, savedir=testsavedir, render_factor=args.render_factor)
                 print('Done rendering', testsavedir)
                 imageio.mimwrite(os.path.join(testsavedir, 'rgb.mp4'), to8b(rgbs), fps=30, quality=8)
@@ -866,6 +876,12 @@ def train():
 
 
     N_iters = args.N_iters + 1
+    B, _, _ = rays_rgb.shape
+    wandb.config = {
+    "learning_rate": args.lrate,
+    "epochs": N_iters,
+    "batch_size": B}
+
     print('Begin')
     print('TRAIN views are', i_train)
     print('TEST views are', i_test)
@@ -919,7 +935,7 @@ def train():
             target = images[img_i]
             pose = poses[img_i, :3,:4]
 
-            if N_rand is not None:
+            if args.N_rand is not None:
                 rays_o, rays_d = get_rays(H, W, focal, torch.Tensor(pose))  # (H, W, 3), (H, W, 3)
 
                 if i < args.precrop_iters:
@@ -1033,6 +1049,8 @@ def train():
         new_lrate = args.lrate * (decay_rate ** (global_step / decay_steps))
         for param_group in optimizer.param_groups:
             param_group['lr'] = new_lrate
+
+        wandb.config.update({"lr": new_lrate})
         ################################
 
         dt = time.time()-time0
@@ -1072,17 +1090,18 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                rgbs, disps = render_path(torch.Tensor(poses[i_test]).to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                rgbs, disps = render_path(poses[i_test].to(device), hwf, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
             print('Saved test set')
 
             filenames = [os.path.join(testsavedir, '{:03d}.png'.format(k)) for k in range(len(i_test))]
 
-            test_loss = img2mse(torch.Tensor(rgbs), images[i_test])
+            test_loss = img2mse(torch.Tensor(rgbs).to(device), images[i_test])
             test_psnr = mse2psnr(test_loss)
 
     
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")
+            wandb.log({"loss": loss.item(), "epoch": i, 'psnr': psnr.item() })
         """
             print(expname, i, psnr.numpy(), loss.numpy(), global_step.numpy())
             print('iter time {:.05f}'.format(dt))

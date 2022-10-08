@@ -1,4 +1,3 @@
-expname = fern_2v
 basedir = ./logs/release
 datadir = ./data/split_allview_npy/fern_2view
 dataset_type = colmap_llff
