@@ -84,7 +84,7 @@ class SigmaLoss:
         weights = alpha * torch.cumprod(torch.cat([torch.ones((alpha.shape[0], 1)).to(device), 1.-alpha + 1e-10], -1), -1)[:, :-1]
         
         
-        loss = -torch.log(weights) * torch.exp(-(z_vals - depths[:,None]) ** 2 / (2 * err)) * dists
+        loss = -torch.log(weights + 1e-5) * torch.exp(-(z_vals - depths[:,None]) ** 2 / (2 * err)) * dists
         loss = torch.sum(loss, dim=1)
         
         return loss
