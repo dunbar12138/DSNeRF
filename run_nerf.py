@@ -849,7 +849,7 @@ def train():
             print('shuffle depth rays')
             np.random.shuffle(rays_depth)
 
-            max_depth = np.max(rays_depth[:,3,0])
+            max_depth = np.max(rays_depth[:,2,0])
         print('done')
         i_batch = 0
 
