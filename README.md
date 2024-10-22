@@ -1,5 +1,8 @@
 # Depth-supervised NeRF: Fewer Views and Faster Training for Free
 
+<a href="https://arxiv.org/abs/2107.02791"><img src="https://img.shields.io/badge/arXiv-2107.02791-b31b1b.svg" height=22.5></a>
+<a href="https://docs.nerf.studio/reference/api/model_components/losses.html#nerfstudio.model_components.losses.ds_nerf_depth_loss"><img src="https://img.shields.io/badge/nerfstudio-dsnerf-yellow" height=22.5></a>
+
 [**Project**](https://www.cs.cmu.edu/~dsnerf/) | [**Paper**](https://arxiv.org/abs/2107.02791) | [**YouTube**](https://youtu.be/84LFxCo7ogk)
 
 Pytorch implementation of DS-NeRF. DS-NeRF can improve the training of neural radiance fields by leveraging depth supervision derived from 3D point clouds. It can be used to train NeRF models given only very few input views.
@@ -27,6 +30,14 @@ We propose DS-NeRF (Depth-supervised Neural Radiance Fields), a model for learni
 <p align="center">
   <img src="figure_teaser.png"  width="800" />
 </p>
+
+## News
+- Thanks to the contributors of [NeRFStudio](https://docs.nerf.studio/index.html), [DS-NeRF loss](https://docs.nerf.studio/reference/api/model_components/losses.html#nerfstudio.model_components.losses.ds_nerf_depth_loss) has been implemented and integrated. Try it out in [depth-nerfacto](https://github.com/nerfstudio-project/nerfstudio/blob/main/nerfstudio/models/depth_nerfacto.py)!
+<p align="center">
+  <img src="https://docs.nerf.studio/_images/logo.png"  width="300" />
+</p>
+
+
 
 ## Results
 
